@@ -134,11 +134,6 @@ chokidar@^3.5.1:
   optionalDependencies:
     fsevents "~2.3.2"
 
-colors@1.4.44-liberty-2:
-  version "1.4.44-liberty-2"
-  resolved "https://registry.yarnpkg.com/colors/-/colors-1.4.44-liberty-2.tgz#bc78794e9e1f81702e9828ddfa7f0b290a0a4842"
-  integrity sha512-Sghc2hoYgeQFIkUfuxRP4uTTdYlQOt1r/f5FsTuatpDud+vdOaZr55ySQ7O1gEEVy33TIGnn4oNksKgWFUPRDw==
-
 colors@^1.4.0:
   version "1.4.0"
   resolved "https://registry.yarnpkg.com/colors/-/colors-1.4.0.tgz#c50491479d4c1bdaed2c9ced32cf7c7dc2360f78"
