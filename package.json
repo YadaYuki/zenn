@@ -12,6 +12,7 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "colors": "1.4.44-liberty-2",
     "zenn-cli": "^0.1.98"
   }
 }
