@@ -26,7 +26,7 @@ https://github.com/YadaYuki/news-recommendation-llm
 
 推薦アルゴリズムには、行列分解やメモリベース協調フィルタリング、バンディットアルゴリズムを用いた推薦など、様々な手法が存在します。解きたいタスクやドメインに応じて、どのアルゴリズムが適切であるか、はケースバイケースです。
 
-そんな中、ニュース推薦では、**深層学習を用いたコンテンツベースの推薦モデル**が特に高い性能を出すことが、近年の学術研究では知られています [1-3, 9]。
+そんな中、ニュース推薦では、**深層学習を用いたコンテンツベースの推薦モデル**が特に高い性能を出すことが、近年の学術研究では知られています。本章では、深層学習を用いたコンテンツベースの推薦モデルの概要および今回の実験で用いたPLM-NRというモデルの説明を行います。
 
 ## 2.1 ニュース推薦モデルの構造
 
@@ -34,37 +34,52 @@ https://github.com/YadaYuki/news-recommendation-llm
 
 ![](/images/d028faf7217ec8/news-rec-overview.png =400x)
 
-図の$D_c$は推薦候補となるニュース記事(Candidate News)、$D_1$ ~ $D_T$は推薦されるユーザが過去に読んだ$T$本のニュース記事(Clicked News)です。
+図の$D_c$は推薦候補となるニュース記事、$D_1$ ~ $D_T$は推薦対象となるユーザが過去に読んだニュース記事$T$本です。
 
-ニュース推薦モデルは、大きくわけて、以下の3つのコンポーネントから構成されます。
+この図から、ニュース推薦モデルは、大きくわけて3つのコンポーネントから構成されることがわかります。
 
-- **News Encoder**: ニュースコンテンツ($D_c$, $D_1$ ~ $D_T$)からニュース記事を意味合いを反映した$d$次元のベクトル($h_c$, $h_1$ ~ $h_T$)を出力する
-- **User Encoder**: 過去にユーザが読んだニュース記事のリスト($D_1$ ~ $D_T$)から、ユーザの嗜好を反映した$d$次元のベクトル($u$)を出力する
+- News Encoder: ニュースコンテンツ($D_c$)からニュース記事を意味合いを反映したベクトルを出力する
+- User Encoder: 過去にユーザが読んだニュース記事のリスト($D_1$ ~ $D_T$)から、ユーザの嗜好を反映したベクトルを出力する
+- Click Predictor: News EncoderとUser Encoderの出力ベクトルの内積を計算し、$D_c$をクリックする確率を出力する
 
-- **Click Predictor**: User EncoderとNews Encoderの$d$次元の出力ベクトル($u$,$h_c$)の内積$u^T\cdot h_c$を計算し、ユーザが$D_c$をクリックする確率$\^y$を出力する
+したがって、ニュース推薦モデルは、「**過去にユーザが読んだ記事データから得られるユーザの嗜好**」と「**推薦対象となるニュース記事データ**」をそれぞれ同じ次元数のベクトルに変換し、その**類似度を内積により計算することで、クリック率を予測しているモデル**であると言えます。
 
-すなわち、ニュース推薦モデルは、「**過去にユーザが読んだ記事データから得られるユーザの嗜好**」と「**推薦対象となるニュース記事データ**」をそれぞれ同じ次元数のベクトルに変換し、その**類似度を、内積により計算することで、クリック率を予測しているモデル**であると言えます。
+そのため、「**ユーザの嗜好やニュース記事データをどのようにしてベクトル化するのか(News EncoderとUser Encoderをどう構築するか)？**」というのがニュース推薦における最も重要なトピックと言っても過言ではありません。
 
-「**ユーザの嗜好やニュース記事データをどのようにしてベクトル化するのか(News EncoderとUser Encoderをどう構築するか)？**」というのがニュース推薦における最も重要なトピックと言っても過言ではありません。
+近年では、それらのベクトル化にBERTをはじめとした大規模言語モデルを活用したモデルが、高い性能を出すことで知られています。
 
-近年では、それらの**ベクトル化にBERTをはじめとした大規模言語モデルを活用した手法**が、高い性能を出すことで知られています。
+## 2.2 PLM-NR
 
-## 2.2 PLM-NR [1]
-
-2019年のBERTの登場を皮切りに、RoBERTaやGPT、LLaMAなど、様々なTransformerをベースとした大規模言語モデルが提案・公開され、あらゆる自然言語処理タスクで高い性能を発揮しています。
-
-今回実装した**PLM-NR**(**Pre-trained Language Model empowered News Recommendation**)は、事前学習済みの言語モデルを用いたニュース推薦手法で、2021年にWuらにより、その結果が報告されました[1]。
-
-2.1節でも説明があった通り、コンテンツベースのニュース推薦モデルで、News EncoderとUser EncoderにBERTを用いています。
-
-彼らはNews EncoderとUser EncoderにBERTを用いた複数のニュース推薦モデルに対して、後述するMIND[3]を用いてオフライン検証を行い、**モデルが高い性能が出すことを確認しました**。
-
-彼らの報告はオフライン検証による性能評価に留まりません。オンライン実験として、PLM-NRによるニュース推薦システムを実際に[Microsoft Newsプラットフォーム](https://news.microsoft.com/source/)上で稼働したところ、既存モデルと比較して、**8.53%のクリック率の向上が見られた**とのことです。
-
-彼らのオフライン検証の中で最も高い性能が得られたのがNRMS[9]というモデルにBERTを適用した**NRMS-BERT**という、BERTからの出力系長にMultihead Attentionを適用した手法です。次章では、いよいよ今回実装したNRMS-BERTの詳細な理論および実装の説明をしていきます。
+2019年のBERTの登場を皮切りに、RoBERTaやGPT、LLaMAなど、様々なTransformerをベースとした大規模言語モデルが提案・公開され、あらゆる自然言語処理タスクで高い性能を発揮しています。今回実装したPLM-NR(Pre-trained Language Model empowered News Recommendation)は、事前学習済みの言語モデルを用いたニュース推薦手法で、2021年にWuらにより提案されました。
 
 
-# 3. NRMS-BERTの理論と実装
+<!-- TODO: オフライン検証の結果 -->
+彼らの報告はオフライン実験による性能向上に留まりません。オンライン実験として、PLM-NRによるニュース推薦システムを実際にMicrosoft Newsプラットフォーム上で稼働したところ、既存モデルと比較して、**8.53%のクリック率の向上が見られた**とのことです。
+
+オフライン検証で最も高い性能を得られたのが、NRMS-BERTです。
+
+## 2.3 NRMS-BERT
+
+<!-- TODO: NRMS-BERTの理論説明を補強した上で3.2章に移動。 -->
+今回実装したのは、PLM-NRの中でも**NRMS(News Recommendation with Multi-Head Self-Attention)-BERT**という手法になります。ここでは、NRMS-BERTについて簡単に説明していきます。以下はNRMS-BERTの概要図です:
+
+<!-- TODO: 概要図 -->
+
+2.1で述べた構造の通り、NRMS-BERTもNews Encoder, User Encoder, Clicke Predictorの3つで構成されます。
+
+まず、News Encoderです。NRMS-BERTのNews Encoderでは、最初に、推薦候補となるD_cニュースタイトルの単語系列w_i ... wをBERTに入力します。次に、BERTから出力された単語のベクトル系列e_iを更にmulti-head self-attentionsに入力することでh_1...を獲得します。最後にadditive_attentionを用いた加重平均によって、ベクトル系列h_1...をrという単一のニュース表現ベクトルに集約します。
+
+次に、User Encoderです。User Encoderは、ユーザが過去に読んだニュース記事D_ ... D_を先ほど説明したNews Encoderでr _1...r_1 に変換します。そして、それらのベクトル系列を、News Encoder同様、multi-head self-attentions( r_1.. → h_1... )、additive_attention(h_1... → u)の順で入力し、ユーザの表現ベクトルuを獲得します。
+
+最後に、uとvの内積を計算することで、クリック率を得ます。(Click Predictor)
+
+<!-- まとめの章あった方が良いかも -->
+
+以上が今回実装したモデルの説明です。次章では、モデルのPythonによる実装について見ていきましょう。
+
+# 3. 実装
+
+本章では、2章で説明したPLM-NR(NRMS-BERT)の実装について説明していきます。
 
 ## 3.1 使用技術・フォルダ構成
 
@@ -113,16 +128,13 @@ Ryeは**one-stop-shop**と表現されるように、Pythonインタプリタの
 
 現時点ではあくまで、**experimentalでnot yet production ready**と[記載がある](https://rye-up.com/)ので、本番利用等を強く勧めることは、躊躇われます。しかし、個人の感想としては、悪名高きPython開発環境構築をDXしてくれる素晴らしいツールであると感じています。
 
-
 ## 3.2 PyTorchによるPLM-NR(NRMS-BERT)実装
 
-プロジェクトの概観がつかめたところで、NRMS-BERTとそれを構成するレイヤーのPyTorch/transformersによる実装を見ていきます。なお、Multihead Attentionの実装・数式に関する説明はここでは割愛します。[Transformerの原論文](https://arxiv.org/abs/1706.03762)やインターネット上の技術記事等を参照してください。
+プロジェクトの概観がつかめたところで、NRMS-BERTとそれを構成するレイヤーのPyTorch/transformersによる実装を見ていきます。なお、Multihead Attentionの実装・数式に関する説明はここでは割愛します。Transformerの原論文やインターネット上の技術記事等を参照してください。
 
 ### Additive Attention
 
-NewsEncoder・UserEncoderについてみて行く前に、まずはAdditive Attentionについてです。Additive Attentionは「ニュースの単語ベクトルの配列」や「ユーザが過去に読んだニュースの埋め込みベクトルの配列」などの**ベクトル系列を、重要度に基づいて重み付けし、一つのベクトルに集約する役割を持ちます**。
-
-以下が数式です: 
+NewsEncoder・UserEncoderについてみて行く前に、まずはAdditive Attentionについてです。Additive Attentionは「ニュースの単語ベクトルの配列」や「ユーザが過去に読んだニュースの埋め込みベクトルの配列」などのベクトル系列を、重要度に基づいて重み付けし、一つのベクトルに集約する役割を持ちます。以下が数式です: 
 
 $$ a_i^w = q_w^T {\tanh}(V_w \times h_i^w + v_w) $$
 
@@ -177,19 +189,20 @@ class AdditiveAttention(nn.Module):
 
 ### News Encoder
 
-ここで、ニュース記事テキストの単語列を$d$次元の単一のベクトル$r$に変換するNews Encoderの実装を見ていきます。以下は、NRMS-BERTにおけるNews Encoderの概要図です。
+
+<!-- TODO: Dcとは？Dとは？次元数の変化？ -->
+ここで、ニュース記事テキストの単語列を$d$次元の単一のベクトル$r￥h$に変換するNews Encoderの実装を見ていきます。以下は、NRMS-BERTにおけるNews Encoderの概要図です。
 
 ![](/images/d028faf7217ec8/news-encoder.png =400x)
 
-NRMS-BERTのNews Encoderは、BERT Encoder・Multihead Attention・Additive Attentionの3つから構成されます。
+NRMS-BERTのNews Encoderは、既に述べた通り、「BERTによるEncoder」「Multihead Attention」「Additive Attention」の3つから構成されます。News Encoderでは、まず、ニュース記事の記事タイトルテキスト$D$の単語系列$w_1 ~ w_M$をBERTに入力します。そうして得られた単語ベクトルの埋め込み$e_1 ~ e_M$をMultihead Self-Attention, Additive Attentionの順番で入力し、最終的にニュースベクトルhを獲得します。
 
-News Encoderでは、まず、ニュース記事の記事タイトルテキスト$D$の単語系列$w_1$ ~ $w_M$をBERTに入力します。そうして得られた単語ベクトルの埋め込み$e_1$ ~ $e_M$をMultihead Self-Attention, Additive Attentionの順番で入力し、最終的にニュースベクトル$h$を獲得します。
+今回、「BERTによるEncoder」「Multihead Attention」はtransformersとPyTorchにより提供されている実装を活用しました。Additive Attentionも既に実装済みであるため、News Encoder自体の実装は非常にシンプルです。
 
-今回、BERT EncoderとMultihead Attentionは、transformersとPyTorchにより提供されている実装を活用しました。Additive Attentionも既に実装済みであるため、News Encoder自体の実装は非常にシンプルです。
-
-それでは、以上を踏まえ、News Encoder(`PLMBasedNewsEncoder`)の実装を見てみましょう。
+それでは、以上を踏まえ、News Encoder(PLMBasedNewsEncoderクラス)の実装を見てみましょう。
 
 ```python
+
 import torch
 from torch import nn
 from transformers import AutoConfig, AutoModel
@@ -229,19 +242,13 @@ class PLMBasedNewsEncoder(nn.Module):
         return output
 ```
 
+
 ### User Encoder
 
-ここでは、ユーザが過去に読んだニュース記事リストから、News Encoderの出力次元と同じ$d$次元のユーザのベクトル$u$を獲得するUser Encoderの実装を見ていきます。以下は、NRMS-BERTにおけるUser Encoderの概要図です。
-
-![](/images/d028faf7217ec8/user-encoder.png =500x)
-
-User Encoderでは、まず、既に実装したNews Encoderを用いて、ユーザが過去に読んだ$T$本のニュース記事リスト$D_1$ ~ $D_T$(List of Clicked News Content)を、それぞれ$d$次元ベクトル$h_1$ ~ $h_T$に変換し、$T$個のベクトルを獲得します。
-
-$h_1$ ~ $h_T$を、News Encoderが単語ベクトル列を一つのベクトルに集約したのと同様の手順で、Multihead Attention,Additive Attentionの順で適用して、最終的に、ユーザの嗜好を表現した一つの$d$次元ベクトル$u$に集約します。
-
-以上がUser Encoderの構造に関する説明です。こちらもNews Encoder, Additive Attention, Multihead Attentionといった構成要素は既に実装済みであるため、実装は非常にシンプルです。User Encoder(`UserEncoder`)の実装を見てみましょう。
+次に、ユーザが過去に読んだニュース記事リストから、ユーザのベクトルを獲得するUser Encoderの実装を見ていきます。User Encoderでは、前章で実装したNews Encoderを用いて、ユーザが過去に読んだニュース記事リストDをそれぞれEncodeし、N本のニュース記事をベクトルに変換します。それらをNews Encoderが単語ベクトル列を一つのベクトルに集約したのと同様の手順で、Multihead AttentionとAdditive Attentionを用いて、ユーザの嗜好を表現した一つのベクトルuに集約しています。以下が実装になります。
 
 ```python
+
 import torch
 from torch import nn
 
@@ -288,7 +295,6 @@ class UserEncoder(nn.Module):
 
         return output
 ```
-
 
 ### NRMS-BERT(Click Predictor)
 
@@ -363,47 +369,24 @@ class NRMS(nn.Module):
         return ModelOutput(logits=output, loss=loss, labels=target)
 ```
 
-
-以上がモデルの実装に関する説明になります。次章からは、実装したモデルの訓練・検証を行います。今回、モデルの検証には**MIND**というデータセットを用いました。
-
-
+さて、以上がモデルの実装に関する説明になります。次章からは、実際に訓練を回し、実装したモデルの検証を行います。今回、モデルの検証にはMINDというデータセットを用いました。
 
 # 4. MIND: Microsoft News Dataset
 
-今回、**モデルの学習・評価にはMicrosoft Newsの実際の行動ログ・ニュースデータを収集することにより作成された Microsoft News Dataset**(**通称:MIND**)[3]を用いました。MINDには「約16万件の英文ニュース記事データ」と「約100万のユーザから収集された1500万件以上の行動ログ」が保存されています。2020年にMicrosoftの研究者らによって公開されて以来、MINDは多くのニュース推薦に関する研究で用いられています
+今回、モデルの学習・評価にはMicrosoft Newsの実際の行動ログ・ニュースデータを収集することにより作成された Microsoft News Dataset(通称MIND)を用いました。MINDには「約16万件の英文ニュース記事データ」と「約100万のユーザから収集された1500万件以上の行動ログ」が保存されています。
 	
-今回は、MIND内のニュース情報を格納した`news.tsv`とユーザのImpression情報を格納した`behaviors.tsv`の二つのtsvファイルを用いてモデルの学習・検証を行いました。[Microsoftの公式サイト](https://learn.microsoft.com/en-us/azure/open-datasets/dataset-microsoft-news)によると、それぞれのファイルには次の表に示すようなデータが格納されています。
+2020年にMicrosoftの研究者らによって公開されて以来、MINDは多くのニュース推薦に関する研究で用いられてきました。ニュース推薦分野の検証用データセットとして、デファクトスタンダードとも言える地位を、現時点では確立しています。
+	
+MINDはニュース情報を格納した`news.tsv`とユーザのImpression情報を格納した`behaviors.tsv`の二つのtsvファイルからなり、それぞれのファイルには次の表に示すようなデータが格納されています。
 
+<!-- TODO: 表で各カラムの説明とその具体例 -->
 
-**news.tsv**
-| カラム名             | 説明                                                                                           | 具体例                                                                                      |
-|--------------------|----------------------------------------------------------------------------------------------|-------------------------------------------------------------------------------------------|
-| News ID            | ニュースのID                                                                                     | N37378                                                                                     |
-| Category           | カテゴリ                                                                                        | sports                                                                                    |
-| Subcategory        | サブカテゴリ                                                                                     | golf                                                                                      |
-| Title              | タイトル                                                                                        | PGA Tour winners                                                                          |
-| Abstract           | 要約                                                                                            | A gallery of recent winners on the PGA Tour.                                               |
-| URL                | URL                                                                                           | [https://www.msn.com/en-us/sports/golf/pga-tour-winners/ss-AAjnQjj?ocid=chopendata](https://www.msn.com/en-us/sports/golf/pga-tour-winners/ss-AAjnQjj?ocid=chopendata) |
-| Title Entities     | このニュースのタイトルに含まれるエンティティ                                                       | -                                                                                         |
-| Abstract Entities  | このニュースの要約に含まれるエンティティ                                                           | -                                                                                         |
+<!-- TODO: 「NRMS-BERTを学習する際には、historiesカラムのニュースをUser Encoderに入力する過去のclickedカラムに格納されたニュースをNews Encoderに入力する推薦アイテム候補とし、clickedカラムのラベルを予測しています」的な -->
 
-**behavior.tsv:**
-| カラム名       | 説明                                                                                       | 具体例                   |
-|--------------|------------------------------------------------------------------------------------------|------------------------|
-| Impression ID | インプレッションのID                                                                         | 123                     |
-| User ID      | ユーザーの匿名ID                                                                             | U131                    |
-| Time         | インプレッションの時間。形式は“MM/DD/YYYY HH:MM:SS AM/PM”                                      | 11/13/2019 8:36:57 AM   |
-| History      | このインプレッションの前のユーザーのニュースクリック履歴（クリックされたニュースのIDリスト）       | N11 N21 N103            |
-| Impressions  | このインプレッションで表示されたニュースのリストと、それらのニュースに対するユーザーのクリック行動（1はクリック、0は非クリック） | N4-1 N34-1 N156-0 N207-0 N198-0 |
-
-Historyカラムに示されたニュースリストをユーザが過去にクリックしたニュース($D_1$ ~ $D_T$)、Impressionsカラムに示されたクリック, 非クリック情報を正解ラベルとして、モデルを訓練しています。
-
-MINDに関するより詳細な説明は、[論文](https://aclanthology.org/2020.acl-main.331/)や[公式サイト](https://msnews.github.io/)をご覧ください。なお、MINDにはユーザ数を50,000人分のみに限定したsmallサイズのデータセット( MIND-small )も用意されており、今回の実験ではそちらを利用しました。
+なお、MINDにはユーザ数を50,000人分のみに限定したsmallサイズのデータセット( MIND-small )も用意されており、今回の実験ではそちらを利用しました。
 
 # 5. モデルの訓練と評価
-
 ## 5.1 ネガティブサンプリング
-
 NRMS-BERTは、モデルの訓練方法が少し特殊です。MINDにあるようなクリックログから、単純にクリックする(=1), クリックしない(=0)の二値分類として学習するのではなく、ネガティブサンプリングという手法を活用します。 ユーザがクリックしたニュース1本(正例,label=1)に対して、ユーザがクリックしなかったニュースK本(負例,label=0)をランダムにサンプリングし、(1 + K)クラスの多値分類として学習を行います。
 
 ここでは、ネガティブサンプリングが実装されているPyTorchのDatasetクラスの実装を参考に見ていきます
@@ -445,12 +428,12 @@ class MINDTrainDataset(Dataset):
         return random.sample(neg_idxes, self.npratio)
 	...
 ```
-なお、今回は先行研究[1,9]と同様、負例の数をK = 4(`npratio = 4`)、すなわち「5本のニュースの中でユーザがクリックしたニュースはどれか？」という5値分類として推薦モデルの学習を行いました。
+なお、今回は先行研究と同様、負例の数をK = 4(`npratio = 4`)、すなわち「5本のニュースの中でユーザがクリックしたニュースはどれか？」という5値分類として推薦モデルの学習を行いました。
 
 
 ## 5.2 評価指標
 
-モデルの評価指標は元論文[1,9]に倣い、AUC, MRR, nDCG@Kの3つを採用しました。AUCは2値分類でよく用いられる評価指標の一つで、クリックした・しなかったを適切に予測できている時ほどスコアが高くなります。
+モデルの評価指標は元論文に倣い、AUC, MRR, nDCG@Kの3つを採用しました。AUCは2値分類でよく用いられる評価指標の一つでクリックした・しなかったを適切に予測できている時ほどスコアが高くなります。
 
 MRRはレコメンドの評価指標としてよく用いられ、以下の式で表せます。
 
@@ -470,9 +453,9 @@ $$
 	nDCG = \frac{DCG}{DCG_{max}}
 $$
 
-なお、元論文に合わせて、Burgesらにより定義されたnDCG[8]を採用しています。
+なお、元論文に合わせて、Burgesらにより定義されたnDCG[]を採用しています。
 
-これらの評価指標は[RecEvaluator](https://github.com/YadaYuki/news-recommendation-llm/blob/main/src/evaluation/RecEvaluator.py#L13)クラスに実装があります。長くなるのでここでは割愛しますが、興味があれば、ぜひご覧ください。
+これらの評価指標は[RecEvaluator](https://github.com/YadaYuki/news-recommendation-llm/blob/main/src/evaluation/RecEvaluator.py#L13)クラスに実装があります。長くなるのでここでは割愛しますが、興味があればぜひご覧ください。
 
 ## 5.3 評価結果
 
@@ -485,27 +468,24 @@ $$
 | Random Recommendation  | 0.500 | 0.201 | 0.203  |  0.267  |
 | NRMS + DistilBERT-base | 0.674 | 0.297 | 0.322  |  0.387  |
 |    NRMS + BERT-base    | 0.689 | 0.306 | 0.336  |  0.400  |
-|    NRMS-BERT[1] (参考)   | 0.695 | 0.347 | 0.380  |  0.437  |
+|    NRMS-BERT[] (参考)   | 0.695 | 0.347 | 0.380  |  0.437  |
 
 
 ランダム推薦と比較すると、DistilBERT, BERT、いずれも明らかに高い性能が得られていることがわかります。
 
 また、結果の表の最下部に、PLM-NRの論文に記載されていたNRMS-BERTの結果を参考として掲載しました。今回は、小規模なMIND-smallで学習しましたが、それでも、**MIND全体で学習した論文記載の結果にかなり近い性能を出せていること**がわかります。
 
-なお、学習にかかった時間やハイパーパラメータ、学習済みモデルへのリンクは、Appendixに掲載しましたので、そちらをご覧ください。
+なお、学習にかかった時間やハイパーパラメータ、学習済みモデルへのリンクは、Appendixに掲載しましたのでそちらをご覧ください。
 
 # 6. まとめ
 
-長くなりましたが、以上になります！
+長くなりましたが、以上になります！今回は、大規模言語モデル(BERT)を用いた推薦手法であるNRMS-BERTの実装・評価を行いました。MIND(MIND-small)というデータセットを用いて訓練・評価を行った結果、NRMS-BERTの現論文にかなり迫る性能を出すことができました。
 
-今回は、大規模言語モデル(BERT)を用いた推薦手法であるNRMS-BERTの実装・評価を行いました。MIND(MIND-small)というデータセットを用いて訓練・評価を行った結果、NRMS-BERTの現論文にかなり迫る性能を出すことができました。
+今回は、BERT-base/DistilBERT-baseを使ったモデルをファインチューニングしたモデルを評価しましたが、2023年に入って発表された直近の研究では、GPT系モデル + LoRAチューニングを用いた手法[]やニュース推薦のためのPrompt Learning[]等、新しい手法が次々と紹介されています。
 
-今回は、BERT-base/DistilBERT-baseを使ったモデルをファインチューニングしたモデルを評価しましたが、2023年に入って発表された直近の研究では、GPT系モデル + LoRAチューニングを用いたニュース推薦の拡張[7]やニュース推薦のためのPrompt Learning[6]等、新しい手法が次々と紹介されています。
+大規模言語モデルの応用分野の一つとして、ニュース推薦分野の研究は、ますます活発化していくことが予想されます。
 
-大規模言語モデルの応用分野の一つとして、ニュース推薦分野の研究は、ますます活発化していくことが予想(期待)されます。
-
-本記事を面白いと思ってくれた方がいらっしゃいましたら、[news-recommendation-llm](https://github.com/YadaYuki/news-recommendation-llm)にスターをしてくださると、励みになります。
-
+本記事を通して、言語モデルの推薦システムへの応用を面白いと思ってくれた方は[news-recommendation-llm](https://github.com/YadaYuki/news-recommendation-llm)にスターをしてくださると、励みになります。
 
 # 7. 参考文献
 
@@ -546,4 +526,3 @@ $$
 | :--------------------: | :-----:| :-----: |
 | NRMS + DistilBERT-base | [Google Drive](https://drive.google.com/file/d/1cw9WQSOVYJdYJCuIrSmU8odV2nsmith5/view) | 15.0h |
 |    NRMS + BERT-base    | [Google Drive](https://drive.google.com/file/d/1ARiUgSVwcDFopFoIusp2MGQzwTMncOFf/view) | 28.5h |
-
